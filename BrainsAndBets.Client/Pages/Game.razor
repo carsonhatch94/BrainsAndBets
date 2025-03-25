@@ -1,0 +1,62 @@
+﻿@page "/game"
+@rendermode InteractiveWebAssembly
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+<h3>Game</h3>
+
+<div class="form-group">
+    <label>
+        User:
+        <input @bind="userInput" />
+    </label>
+</div>
+<button @onclick="Join" disabled="@(!IsConnected)">Join Game</button>
+
+<ul id="userList">
+    @foreach (var user in users)
+    {
+        <li>@user</li>
+    }
+</ul>
+
+@code {
+    private HubConnection? hubConnection;
+    private List<string> users = [];
+    private string? userInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/gamehub"))
+            .Build();
+
+        hubConnection.On<string>("JoinedGame", (user) =>
+        {
+            users.Add(user);
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    private async Task Join()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("JoinGame", userInput);
+        }
+    }
+
+    public bool IsConnected =>
+        hubConnection?.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}
