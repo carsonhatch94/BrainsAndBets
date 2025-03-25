@@ -6,25 +6,38 @@
 
 <h3>Game</h3>
 
-<div class="form-group">
-    <label>
-        User:
-        <input @bind="userInput" />
-    </label>
-</div>
-<button @onclick="Join" disabled="@(!IsConnected)">Join Game</button>
+@if (!_hasJoined)
+{
+    <p>
+        Enter your name to join the game:
+    </p>
 
-<ul id="userList">
-    @foreach (var user in users)
-    {
-        <li>@user</li>
-    }
-</ul>
+    <input type="text" maxlength="32" @bind="@_username" />
+    <button type="button" @onclick="@Join"><span class="oi oi-chat" aria-hidden="true"></span> Join Game!</button>
+}
+else
+{
+    <div>
+        <span aria-hidden="true"></span>
+        <span>You are connected as <b>@_username</b></span>
+    </div>
+
+    <h2>Connected users:</h2>
+    <ul>
+        @foreach (var user in _connectedUsers)
+        {
+            <li>@user</li>
+        }
+    </ul>
+}
 
 @code {
+    private bool _hasJoined = false;
+    private string _username;
+    private string _message;
+    private List<string> _connectedUsers = new List<string>();
     private HubConnection? hubConnection;
-    private List<string> users = [];
-    private string? userInput;
+    private string _hubUrl;
 
     protected override async Task OnInitializedAsync()
     {
@@ -32,25 +45,53 @@
             .WithUrl(Navigation.ToAbsoluteUri("/gamehub"))
             .Build();
 
-        hubConnection.On<string>("JoinedGame", (user) =>
+        hubConnection.On<IEnumerable<string>>("UpdateConnectedUsers", (userList) =>
         {
-            users.Add(user);
+            _connectedUsers = userList.ToList();
             InvokeAsync(StateHasChanged);
         });
 
         await hubConnection.StartAsync();
     }
 
-    private async Task Join()
+    public async Task Join()
     {
-        if (hubConnection is not null)
+        if (string.IsNullOrWhiteSpace(_username))
         {
-            await hubConnection.SendAsync("JoinGame", userInput);
+            _message = "Please enter a name";
+            return;
+        }
+
+        try
+        {
+            _hasJoined = true;
+            await Task.Delay(1);
+
+            string baseUrl = Navigation.BaseUri;
+            _hubUrl = baseUrl.TrimEnd('/') + "/gamehub";
+
+            hubConnection = new HubConnectionBuilder()
+                .WithUrl($"{_hubUrl}?username={_username}")
+                .Build();
+
+            hubConnection.On<IEnumerable<string>>("UpdateConnectedUsers", (userList) =>
+            {
+                _connectedUsers = userList.ToList();
+                InvokeAsync(StateHasChanged);
+            });
+
+            await hubConnection.StartAsync();
+
+            await hubConnection.SendAsync("JoinGame", _username);
+        }
+        catch (Exception e)
+        {
+            _message = $"ERROR: Failed to start chat client: {e.Message}";
+            _hasJoined = false;
         }
     }
 
-    public bool IsConnected =>
-        hubConnection?.State == HubConnectionState.Connected;
+    public bool IsConnected => hubConnection?.State == HubConnectionState.Connected;
 
     public async ValueTask DisposeAsync()
     {
@@ -60,3 +101,4 @@
         }
     }
 }
+

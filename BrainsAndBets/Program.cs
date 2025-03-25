@@ -1,7 +1,6 @@
 using BrainsAndBets.Client.Pages;
 using BrainsAndBets.Components;
 using Microsoft.AspNetCore.ResponseCompression;
-using BrainsAndBets.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
