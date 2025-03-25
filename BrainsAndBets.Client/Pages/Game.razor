@@ -3,6 +3,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @inject NavigationManager Navigation
 @implements IAsyncDisposable
+@using BrainsAndBets.Client.Components
 
 <h3>Game</h3>
 
@@ -20,6 +21,7 @@ else
     <div>
         <span aria-hidden="true"></span>
         <span>You are connected as <b>@_username</b></span>
+        <button @onclick="@DisconnectAsync">Disconnect</button>
     </div>
 
     <h2>Connected users:</h2>
@@ -29,6 +31,7 @@ else
             <li>@user</li>
         }
     </ul>
+    <QuestionFetcher />
 }
 
 @code {
@@ -87,6 +90,19 @@ else
         catch (Exception e)
         {
             _message = $"ERROR: Failed to start chat client: {e.Message}";
+            _hasJoined = false;
+        }
+    }
+
+    private async Task DisconnectAsync()
+    {
+        if (_hasJoined)
+        {
+
+            await hubConnection.StopAsync();
+            await hubConnection.DisposeAsync();
+
+            hubConnection = null;
             _hasJoined = false;
         }
     }

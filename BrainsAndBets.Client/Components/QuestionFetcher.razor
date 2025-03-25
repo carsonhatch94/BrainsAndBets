@@ -1,0 +1,45 @@
+﻿@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+<h3>QuestionFetcher</h3>
+
+<p>@currentQuestion</p>
+
+<button @onclick="FetchRandomQuestion">Get Random Question</button>
+
+@code {
+    private string currentQuestion;
+    private HubConnection? hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/gamehub"))
+            .Build();
+
+        hubConnection.On<string>("ReceiveQuestion", (question) =>
+        {
+            currentQuestion = question;
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    private async Task FetchRandomQuestion()
+    {
+        if (hubConnection != null)
+        {
+            await hubConnection.SendAsync("FetchRandomQuestion");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}

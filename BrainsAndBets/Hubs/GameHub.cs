@@ -1,27 +1,36 @@
 ﻿using Microsoft.AspNetCore.SignalR;
-using System.Collections.Concurrent;
+using BrainsAndBets.Data;
 
 public class GameHub : Hub
 {
-    private static ConcurrentDictionary<string, string> _connectedUsers = new ConcurrentDictionary<string, string>();
+    private static List<string> ConnectedUsers = new List<string>();
+    private static (string Question, int Answer) currentQuestion;
+
+    private static List<(string Question, int Answer)> questions = QuestionRepository.Questions;
 
     public async Task JoinGame(string username)
     {
-        _connectedUsers[Context.ConnectionId] = username;
+        ConnectedUsers.Add(username);
+        await Clients.All.SendAsync("UpdateConnectedUsers", ConnectedUsers);
+        await Clients.Caller.SendAsync("ReceiveQuestion", currentQuestion.Question);
+    }
 
-        // Notify all clients about the new user
-        await Clients.All.SendAsync("UpdateConnectedUsers", _connectedUsers.Values);
-
-        // Notify the new user about the current list of connected users
-        await Clients.Caller.SendAsync("UpdateConnectedUsers", _connectedUsers.Values);
+    public async Task FetchRandomQuestion()
+    {
+        var random = new Random();
+        int index = random.Next(questions.Count);
+        currentQuestion = questions[index];
+        await Clients.All.SendAsync("ReceiveQuestion", currentQuestion.Question);
     }
 
     public override async Task OnDisconnectedAsync(Exception exception)
     {
-        _connectedUsers.TryRemove(Context.ConnectionId, out _);
-
-        // Notify all clients about the updated list of users
-        await Clients.All.SendAsync("UpdateConnectedUsers", _connectedUsers.Values);
+        var user = ConnectedUsers.FirstOrDefault(u => u == Context.GetHttpContext().Request.Query["username"]);
+        if (user != null)
+        {
+            ConnectedUsers.Remove(user);
+            await Clients.All.SendAsync("UpdateConnectedUsers", ConnectedUsers);
+        }
 
         await base.OnDisconnectedAsync(exception);
     }
