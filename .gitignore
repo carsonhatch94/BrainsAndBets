@@ -1,0 +1,4 @@
+﻿*.vsidx
+/.vs
+/BrainsAndBets/bin/Debug/net8.0
+/BrainsAndBets/obj
