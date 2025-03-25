@@ -2,3 +2,5 @@
 /.vs
 /BrainsAndBets/bin/Debug/net8.0
 /BrainsAndBets/obj
+/BrainsAndBets.Client/bin
+/BrainsAndBets.Client/obj
